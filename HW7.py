@@ -1,8 +1,8 @@
 
 # Your name: Daniel Kates
-# Your student id:
-# Your email:
-# List who you have worked with on this project:
+# Your student id: 0239 6287
+# Your email: dkates@umich.edu
+# List who you have worked with on this project: Aaron Benyamini
 
 import unittest
 import sqlite3
