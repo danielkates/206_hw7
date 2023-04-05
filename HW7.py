@@ -54,22 +54,15 @@ def make_positions_table(data, cur, conn):
 
 def make_players_table(data, cur, conn):
     for player in data['squad']:
-        # Extract the player's information
         player_id = player['id']
         player_name = player['name']
         player_position = player['position']
-        player_birthyear = player['dateOfBirth'][:4] # Only need the year from the date
+        player_birthyear = player['dateOfBirth'][:4]
         player_nationality = player['nationality']
-        
-        # Look up the position_id for the player's position in the Positions table
         cur.execute("SELECT id FROM Positions WHERE name=?", (player_position,))
         position_id = cur.fetchone()[0]
-        
-        # Insert the player's information into the Players table
         cur.execute("INSERT INTO Players (id, name, position_id, birthyear, nationality) VALUES (?, ?, ?, ?, ?)",
                     (player_id, player_name, position_id, player_birthyear, player_nationality))
-    
-    # Commit the changes to the database
     conn.commit()
 
 ## [TASK 2]: 10 points
@@ -83,7 +76,10 @@ def make_players_table(data, cur, conn):
         # the player's name, their position_id, and their nationality.
 
 def nationality_search(countries, cur, conn):
-    pass
+    countries_string = ','.join(['?' for _ in range(len(countries))])
+    cur.execute("SELECT name, position_id, nationality FROM Players WHERE nationality IN ({})".format(countries_string), countries)
+    results = cur.fetchall()
+    return results
 
 ## [TASK 3]: 10 points
 # finish the function birthyear_nationality_search
@@ -102,7 +98,11 @@ def nationality_search(countries, cur, conn):
 
 
 def birthyear_nationality_search(age, country, cur, conn):
-    pass
+    cutoff_year = 2023 - age
+    cur.execute("SELECT name, nationality, birthyear FROM Players WHERE nationality=? AND birthyear<?",
+                (country, cutoff_year))
+    results = cur.fetchall()
+    return results
 
 ## [TASK 4]: 15 points
 # finish the function position_birth_search
@@ -122,7 +122,11 @@ def birthyear_nationality_search(age, country, cur, conn):
     # HINT: You'll have to use JOIN for this task.
 
 def position_birth_search(position, age, cur, conn):
-       pass
+    cutoff_year = 2023 - age
+    cur.execute("SELECT p.name, ps.position_name, p.birthyear FROM Players p JOIN Positions ps ON p.position_id=ps.id WHERE ps.position_name=? AND p.birthyear>?",
+                (position, cutoff_year))
+    results = cur.fetchall()
+    return results
 
 
 # [EXTRA CREDIT]
