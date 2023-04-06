@@ -8,6 +8,7 @@ import unittest
 import sqlite3
 import json
 import os
+import pprint
 
 def read_data(filename):
     full_path = os.path.join(os.path.dirname(__file__), filename)
@@ -178,30 +179,42 @@ def position_birth_search(position, age, cur, conn):
 #     they have won since the year passed, including the season that ended
 #     the passed year. 
 
-# def make_winners_table(data, cur, conn):
-#     cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT)")
-#     for team in data['data'][0]['winners']:
-#         cur.execute("INSERT INTO Winners (id, name) VALUES (?, ?)", (team['id'], team['name']))
-#     conn.commit()
+def make_winners_table(data, cur, conn):
+    cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT)")
+    #pprint.pprint(data)
+    for team in data['seasons']:
+        if team['winner'] == None:
+            continue
+        else:
+            cur.execute("SELECT id FROM Winners WHERE id=?", (team['winner']['id'],))
+            result = cur.fetchone()
+            if result is None:
+                cur.execute("INSERT INTO Winners (id, name) VALUES (?, ?)", (team['winner']['id'], team['winner']['name']))
+                conn.commit()
+            else:
+                continue
+    conn.commit()
 
 
-# def make_seasons_table(data, cur, conn):
-#     cur.execute("CREATE TABLE IF NOT EXISTS Seasons (id INTEGER PRIMARY KEY, winner_id TEXT, end_year INTEGER)")
-#     for season in data["data"][:-1]:
-#         if season["winner"] is None:
-#             continue
-#         winner_name = season["winner"]["name"]["full"]
-#         cur.execute("SELECT id FROM Winners WHERE name = ?", (winner_name,))
-#         winner_id = cur.fetchone()[0]
-#         end_year = int(season["endYear"])
-#         cur.execute("INSERT INTO Seasons (id, winner_id, end_year) VALUES (?, ?, ?)", (season["id"], winner_id, end_year))
-#     conn.commit()
+def make_seasons_table(data, cur, conn):
+    cur.execute("DROP TABLE IF EXISTS Seasons")
+    cur.execute("CREATE TABLE Seasons (id INTEGER PRIMARY KEY, winner_id TEXT, end_year INTEGER)")
+    for season in data['seasons']:
+        if season['winner'] == None:
+            continue
+        else:
+            winner_name = season['winner']['name']
+            cur.execute("SELECT id FROM Winners WHERE name = ?", (winner_name,))
+            winner_id = cur.fetchone()[0]
+            end_year = int(season["endDate"][0:4])
+            cur.execute("INSERT INTO Seasons (id, winner_id, end_year) VALUES (?, ?, ?)", (season["id"], winner_id, end_year))
+    conn.commit()
 
 
-# def winners_since_search(year, cur, conn):
-#     cur.execute("SELECT Winners.name, COUNT(*) FROM Seasons JOIN Winners ON Winners.id = Seasons.winner_id WHERE end_year >= ? GROUP BY Winners.name", (int(year),))
-#     results = cur.fetchall()
-#     return {name: count for name, count in results}
+def winners_since_search(year, cur, conn):
+    cur.execute("SELECT Winners.name, COUNT(*) FROM Seasons JOIN Winners ON Winners.id = Seasons.winner_id WHERE end_year >= ? GROUP BY Winners.name", (int(year),))
+    results = cur.fetchall()
+    return {name: count for name, count in results}
 
 
 class TestAllMethods(unittest.TestCase):
@@ -255,22 +268,25 @@ class TestAllMethods(unittest.TestCase):
         self.assertEqual(len(c), 1)
         self.assertEqual(c, [('Teden Mengi', 'Defence', 2002)])
     
-    # # test extra credit
-    # def test_make_winners_table(self):
-    #     self.cur2.execute('SELECT * from Winners')
-    #     winners_list = self.cur2.fetchall()
+    # test extra credit
+    def test_make_winners_table(self):
+        self.cur2.execute('SELECT * from Winners')
+        winners_list = self.cur2.fetchall()
+        self.assertEqual(len(winners_list), 7)
+        self.assertIs(type(winners_list[0][0]), int)
+        self.assertIs(type(winners_list[0][1]), str)
 
-    #     pass
+    def test_make_seasons_table(self):
+        self.cur2.execute('SELECT * from Seasons')
+        seasons_list = self.cur2.fetchall()
+        self.assertEqual(len(seasons_list), 28)
+        self.assertEqual(len(seasons_list[0]), 3)
 
-    # def test_make_seasons_table(self):
-    #     self.cur2.execute('SELECT * from Seasons')
-    #     seasons_list = self.cur2.fetchall()
-
-    #     pass
-
-    # def test_winners_since_search(self):
-
-    #     pass
+    def test_winners_since_search(self):
+        x = winners_since_search('2010', self.cur2, self.conn2)
+        self.assertEqual(len(x), 5)
+        self.assertEqual(x['Chelsea FC'], 3)
+        
 
 
 def main():
@@ -284,11 +300,11 @@ def main():
     conn.close()
 
 
-    # seasons_json_data = read_data('football_PL.json')
-    # cur2, conn2 = open_database('Football_seasons.db')
-    # make_winners_table(seasons_json_data, cur2, conn2)
-    # make_seasons_table(seasons_json_data, cur2, conn2)
-    # conn2.close()
+    seasons_json_data = read_data('football_PL.json')
+    cur2, conn2 = open_database('Football_seasons.db')
+    make_winners_table(seasons_json_data, cur2, conn2)
+    make_seasons_table(seasons_json_data, cur2, conn2)
+    conn2.close()
 
 
 if __name__ == "__main__":
